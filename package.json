@@ -10,6 +10,9 @@
   "bin": {
     "gold-wind-tools": "./bin/gold-wind-tools.js"
   },
+  "files": [
+    "**/*"
+  ],
   "keywords": [],
   "author": "",
   "license": "ISC",
