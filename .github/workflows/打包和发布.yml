@@ -21,7 +21,9 @@ jobs:
           # scope: "@octocat" # 如果你有特定的 scope，也可以配置
       - run: npm ci
       - run: npm run build --if-present
-      - run: npm publish
+      - name: Publish to npm
+        run: |
+          cd dist
+          npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-    # - run: npm test
