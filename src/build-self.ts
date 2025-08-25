@@ -41,7 +41,7 @@ async function build () {
                 copy({
                     targets: [
                         { src: 'bin/**', dest: 'dist/bin' },
-                        // { src: 'package.json', dest: 'dist' }
+                        { src: 'package.json', dest: 'dist' }
                     ]
                 })
             ],

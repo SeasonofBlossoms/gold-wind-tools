@@ -99,8 +99,7 @@ jobs:
       - name: Publish to npm
         run: |
           echo "Publishing version ${{ steps.get_version.outputs.VERSION }} to npm with tag: ${{ steps.npm_tag.outputs.NPM_TAG }}"
-          cd dist
-          ls 
+          cd dist 
           if [ "${{ steps.npm_tag.outputs.NPM_TAG }}" != "latest" ]; then
             npm publish --tag ${{ steps.npm_tag.outputs.NPM_TAG }}
           else
