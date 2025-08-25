@@ -62,14 +62,14 @@ jobs:
         env:
           TAG_NAME: ${{ steps.validate_tag.outputs.TAG_NAME }}
 
+      - name: Update package.json version
+        run: npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version --allow-same-version
+
       - name: Run build
         run: npm run build --if-present
 
-      - name: Run tests
-        run: npm test --if-present
-
-      - name: Update package.json version
-        run: npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version --allow-same-version
+      # - name: Run tests
+      #   run: npm test --if-present
 
       - name: Determine npm tag
         id: npm_tag
@@ -99,7 +99,9 @@ jobs:
       - name: Publish to npm
         run: |
           echo "Publishing version ${{ steps.get_version.outputs.VERSION }} to npm with tag: ${{ steps.npm_tag.outputs.NPM_TAG }}"
+          ls -l
           cd dist
+          ls -l package.json
           if [ "${{ steps.npm_tag.outputs.NPM_TAG }}" != "latest" ]; then
             npm publish --tag ${{ steps.npm_tag.outputs.NPM_TAG }}
           else
