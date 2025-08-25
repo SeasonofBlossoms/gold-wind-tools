@@ -11,7 +11,7 @@
     "gold-wind-tools": "./bin/gold-wind-tools.js"
   },
   "files": [
-    "**/*"
+    "dist"
   ],
   "keywords": [],
   "author": "",
