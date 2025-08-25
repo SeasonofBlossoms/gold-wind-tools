@@ -11,7 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # 获取完整的 Git 历史，以便正确提取版本信息
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -31,9 +30,12 @@ jobs:
           TAG_NAME="${GITHUB_REF#refs/tags/}"
 
           # 验证标签是否符合语义化版本规范（包括预发布版本）
-          if [[ ! "$TAG_NAME" =~ ^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-((0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$ ]]; then
+          if [[ ! "$TAG_NAME" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
             echo "错误: 标签 '$TAG_NAME' 不符合语义化版本规范"
-            echo "有效格式示例: v1.0.0, 2.1.4, 1.0.0-rc.1, 2.3.4-beta.2"
+            echo "有效格式示例:"
+            echo "  - 正式版本: v1.0.0, 2.1.4"
+            echo "  - 预发布版本: v1.0.0-rc.1, 2.3.4-beta.2, 1.0.0-alpha.1"
+            echo "  - 带构建元数据: v1.0.0+build.1, 1.0.0-beta.1+exp.sha.5114f85"
             exit 1
           fi
 
@@ -47,6 +49,16 @@ jobs:
           # 去除可能存在的 'v' 前缀
           VERSION="${TAG_NAME#v}"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+          # 提取预发布标识符（如果有）
+          if [[ "$VERSION" == *-* ]]; then
+            PRE_RELEASE="${VERSION#*-}"
+            PRE_RELEASE="${PRE_RELEASE%%+*}" # 移除构建元数据部分
+            PRE_RELEASE="${PRE_RELEASE%%.*}" # 只取第一部分（如 beta.1 取 beta）
+            echo "PRE_RELEASE=$PRE_RELEASE" >> $GITHUB_OUTPUT
+          else
+            echo "PRE_RELEASE=" >> $GITHUB_OUTPUT
+          fi
         env:
           TAG_NAME: ${{ steps.validate_tag.outputs.TAG_NAME }}
 
@@ -59,15 +71,48 @@ jobs:
       - name: Update package.json version
         run: npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version --allow-same-version
 
+      - name: Determine npm tag
+        id: npm_tag
+        run: |
+          if [ -n "${{ steps.get_version.outputs.PRE_RELEASE }}" ]; then
+            # 根据预发布类型确定 npm 分发标签
+            case "${{ steps.get_version.outputs.PRE_RELEASE }}" in
+              alpha*)
+                echo "NPM_TAG=alpha" >> $GITHUB_OUTPUT
+                ;;
+              beta*)
+                echo "NPM_TAG=beta" >> $GITHUB_OUTPUT
+                ;;
+              rc*)
+                echo "NPM_TAG=rc" >> $GITHUB_OUTPUT
+                ;;
+              *)
+                # 其他预发布类型使用预发布标识符作为标签
+                echo "NPM_TAG=${{ steps.get_version.outputs.PRE_RELEASE }}" >> $GITHUB_OUTPUT
+                ;;
+            esac
+          else
+            # 正式版本发布到 latest 标签
+            echo "NPM_TAG=latest" >> $GITHUB_OUTPUT
+          fi
+
       - name: Publish to npm
-        run: npm publish
+        run: |
+          echo "Publishing version ${{ steps.get_version.outputs.VERSION }} to npm with tag: ${{ steps.npm_tag.outputs.NPM_TAG }}"
+
+          if [ "${{ steps.npm_tag.outputs.NPM_TAG }}" != "latest" ]; then
+            npm publish --tag ${{ steps.npm_tag.outputs.NPM_TAG }}
+          else
+            npm publish
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Generate changelog
         run: |
-          # 如果有 conventional-changelog，可以使用它生成变更日志
-          npx conventional-changelog -p angular -i CHANGELOG.md -s || echo "No conventional-changelog found, skipping changelog generation"
+          # 尝试使用 conventional-changelog 生成变更日志
+          npx conventional-changelog -p angular -i CHANGELOG.md -s 2>/dev/null || \
+          echo "No conventional-changelog found, using default changelog"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -75,23 +120,26 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            # 变更日志
-
-            版本 ${{ steps.get_version.outputs.VERSION }} 已发布。
+            # 版本 ${{ steps.get_version.outputs.VERSION }} 发布
 
             ## 安装
 
+            正式版本：
             ```bash
-            npm install your-package-name@${{ steps.get_version.outputs.VERSION }}
+            npm install your-package-name
+            ```
+
+            预发布版本：
+            ```bash
+            npm install your-package-name@${{ steps.npm_tag.outputs.NPM_TAG }}
             ```
 
             ## 变更内容
 
             查看提交历史或变更日志文件了解详细变更内容。
-          body_path: CHANGELOG.md # 如果上面生成了变更日志文件，优先使用文件内容
+          body_path: CHANGELOG.md
           files: |
             dist/*
-            !dist/**/*.map # 排除源映射文件，如果需要的话
           draft: false
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
         env:
