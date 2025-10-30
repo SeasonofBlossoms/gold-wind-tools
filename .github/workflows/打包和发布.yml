@@ -21,7 +21,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Validate tag format
         id: validate_tag
@@ -67,8 +67,6 @@ jobs:
 
       - name: Run build
         run: npm run build --if-present
-        env:
-          ROLLUP_NATIVE: false # 强制使用 JavaScript 版本的 Rollup
 
       # - name: Run tests
       #   run: npm test --if-present
@@ -101,6 +99,7 @@ jobs:
       - name: Publish to npm
         run: |
           echo "Publishing version ${{ steps.get_version.outputs.VERSION }} to npm with tag: ${{ steps.npm_tag.outputs.NPM_TAG }}"
+          cd dist 
           if [ "${{ steps.npm_tag.outputs.NPM_TAG }}" != "latest" ]; then
             npm publish --tag ${{ steps.npm_tag.outputs.NPM_TAG }}
           else
