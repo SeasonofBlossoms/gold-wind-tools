@@ -4,7 +4,6 @@
     "target": "ESNext",
     "moduleResolution": "nodenext",
     "module": "NodeNext",
-    "baseUrl": ".",
     "jsx": "react-jsx",
     "declaration": true,
     "skipLibCheck": true,
