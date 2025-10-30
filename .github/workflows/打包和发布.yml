@@ -21,15 +21,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
-        run: |
-          # 清理可能的缓存问题
-          npm cache clean --force
-          # 使用 npm ci 进行干净的安装
-          npm ci
-          # 如果上面失败，回退到 npm install
-          # 如果仍然有问题，可以取消下面的注释
-          # rm -rf node_modules package-lock.json
-          # npm install
+        run: npm ci
 
       - name: Validate tag format
         id: validate_tag
@@ -74,12 +66,9 @@ jobs:
         run: npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version --allow-same-version
 
       - name: Run build
-        run: |
-          # 设置环境变量来解决 Rollup 本地二进制文件问题
-          export ROLLUP_NATIVE=false
-          npm run build --if-present
+        run: npm run build --if-present
         env:
-          ROLLUP_NATIVE: false
+          ROLLUP_NATIVE: false # 强制使用 JavaScript 版本的 Rollup
 
       # - name: Run tests
       #   run: npm test --if-present
@@ -112,7 +101,6 @@ jobs:
       - name: Publish to npm
         run: |
           echo "Publishing version ${{ steps.get_version.outputs.VERSION }} to npm with tag: ${{ steps.npm_tag.outputs.NPM_TAG }}"
-          cd dist 
           if [ "${{ steps.npm_tag.outputs.NPM_TAG }}" != "latest" ]; then
             npm publish --tag ${{ steps.npm_tag.outputs.NPM_TAG }}
           else
